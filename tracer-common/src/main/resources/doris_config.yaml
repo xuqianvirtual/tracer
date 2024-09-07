@@ -1,0 +1,6 @@
+driverClassName: com.mysql.cj.jdbc.Driver
+jdbcUrl: jdbc:mysql://10.1.137.3:8080/rawdata?useUnicode=true&characterEncoding=utf8&useTimezone=true&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+username: root
+password:
+maximumPoolSize: 10
+poolName: "Doris HikariCP"

@@ -1,0 +1,101 @@
+tableList:
+  -
+      tableType: FACT_TABLE
+      tableName: events
+      tableComment: 事件表
+      distributeColumn: user_id
+      distributeBucket: 1
+      rangeColumn: time
+      properties:
+        dynamic_partition.enable: "TRUE"
+        dynamic_partition.time_unit: "DAY"
+        dynamic_partition.prefix: "p"
+        dynamic_partition.end: 7
+        replication_num: 1
+      columnDescriptors:
+        -
+            dataType: DATETIME
+            columnName: time
+            columnComment: 事件发生时间
+            dataRange:
+              - "2024-09-07"
+              - "2024-09-10"
+        -
+            dataType: STRING
+            columnName: event_type
+            columnComment: 事件类型
+            dataRange:
+              - "AppClick"
+              - "AppView"
+              - "CreateOrder"
+              - "PayOrder"
+        -
+            dataType: BIGINT
+            columnName: order_id
+            columnComment: 订单ID
+            relatedColumn: orders.id
+            dataRange:
+              - 1
+              - 1000000
+        -
+            dataType: BIGINT
+            columnName: user_id
+            columnComment: 用户ID
+            relatedColumn: users.id
+            dataRange:
+              - 1
+              - 1000000
+  -
+      tableType: DIMENSION_TABLE
+      tableName: users
+      tableComment: 用户表
+      distributeColumn: id
+      distributeBucket: 1
+      properties:
+        replication_num: 1
+      columnDescriptors:
+        -
+            dataType: BIGINT
+            columnName: id
+            columnComment: 用户ID
+            dataRange:
+              - 1
+              - 1000000
+        -
+            dataType: STRING
+            columnName: user_name
+            columnComment: 用户名
+            dataRange:
+              - "$$random_chinese_name$$"
+  -
+      tableType: DIMENSION_TABLE
+      tableName: orders
+      tableComment: 订单表
+      distributeColumn: id
+      distributeBucket: 1
+      properties:
+        replication_num: 1
+      columnDescriptors:
+        -
+            dataType: BIGINT
+            columnName: id
+            columnComment: 订单ID
+            dataRange:
+              - 1
+              - 1000000
+        -
+            dataType: STRING
+            columnName: order_status
+            columnComment: 订单状态
+            dataRange:
+              - "CREATED"
+              - "PAID"
+              - "CANCELED"
+              - "COMPLETED"
+        - 
+            dataType: DOUBLE
+            columnName: order_price
+            columnComment: 订单金额
+            dataRange:
+              - 0
+              - 9999
