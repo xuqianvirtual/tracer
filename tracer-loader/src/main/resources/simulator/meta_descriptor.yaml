@@ -6,11 +6,14 @@ tableList:
       distributeColumn: user_id
       distributeBucket: 1
       rangeColumn: time
+      count: 10000
       properties:
         dynamic_partition.enable: "TRUE"
-        dynamic_partition.time_unit: "DAY"
+        dynamic_partition.time_unit: "MONTH"
         dynamic_partition.prefix: "p"
+        dynamic_partition.start: -300
         dynamic_partition.end: 7
+        dynamic_partition.create_history_partition: "TRUE"
         replication_num: 1
       columnDescriptors:
         -

@@ -3,13 +3,18 @@ package com.xuqianvirtual.tracer.common.repository;
 import com.xuqianvirtual.tracer.common.connector.DorisConnectors;
 import com.xuqianvirtual.tracer.common.model.ColumnDescriptor;
 import com.xuqianvirtual.tracer.common.model.TableDescriptor;
+import com.xuqianvirtual.tracer.common.util.GsonUtil;
+import org.apache.commons.dbutils.handlers.MapListHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +52,21 @@ public class OlapRepository {
       LOGGER.error("drop table with exception. [table = {}]", tableName, e);
       return false;
     }
+  }
+
+  public List<String> showTables() {
+    List<String> tables = new ArrayList<>();
+    try (Connection connection = DorisConnectors.getConnection();
+        Statement statement = connection.createStatement()) {
+      ResultSet resultSet = statement.executeQuery("show tables");
+      List<Map<String, Object>> mapList = new MapListHandler().handle(resultSet);
+      for (Map<String, Object> map : mapList) {
+        map.values().stream().findAny().ifPresent(table -> tables.add(table.toString()));
+      }
+    } catch (SQLException | IOException e) {
+      LOGGER.error("show tables with exception.", e);
+    }
+    return tables;
   }
 
   public boolean createTable(TableDescriptor tableDescriptor, List<ColumnDescriptor> columnDescriptors,
@@ -109,8 +129,54 @@ public class OlapRepository {
       preparedStatement.execute();
       return true;
     } catch (SQLException | IOException throwables) {
-      LOGGER.error("create table with exception. [table = {}, columns = {}]", tableDescriptor, columnDescriptors, throwables);
+      LOGGER.error("create table with exception. [table = {}, columns = {}]", GsonUtil.GSON.toJson(tableDescriptor), GsonUtil.GSON.toJson(columnDescriptors), throwables);
       return false;
+    }
+  }
+
+  public void insertData(TableDescriptor tableDescriptor,
+      List<ColumnDescriptor> columnDescriptors,
+      List<Map<String, Object>> dataList) {
+    if (tableDescriptor == null
+        || columnDescriptors == null || columnDescriptors.isEmpty()
+        || dataList == null || dataList.isEmpty()) {
+      return;
+    }
+    StringBuilder insertSqlBuilder = new StringBuilder();
+    insertSqlBuilder.append("INSERT INTO ").append(tableDescriptor.getTableName()).append(" (");
+    for (int i = 0; i < columnDescriptors.size(); i++) {
+      insertSqlBuilder.append(columnDescriptors.get(i).getColumnName());
+      if (i != columnDescriptors.size() - 1) {
+        insertSqlBuilder.append(",");
+      }
+    }
+    insertSqlBuilder.append(") VALUES ");
+    List<String> placeholderList = new ArrayList<>();
+    for (int i = 0; i < columnDescriptors.size(); i++) {
+      placeholderList.add("?");
+    }
+    for (int i = 0; i < dataList.size(); i++) {
+      insertSqlBuilder.append("(").append(String.join(",", placeholderList)).append(")");
+      if (i != dataList.size() - 1) {
+        insertSqlBuilder.append(",");
+      }
+    }
+    String insertSql = insertSqlBuilder.toString();
+    LOGGER.info("insert OLAP table with sql. [sql = {}]", insertSql);
+    try (Connection connection = DorisConnectors.getConnection();
+        Statement statement = connection.createStatement();
+        PreparedStatement preparedStatement = connection.prepareStatement(insertSql)) {
+      statement.execute("set enable_insert_strict = false");
+      int paramIndex = 1;
+      for (Map<String, Object> map : dataList) {
+        for (ColumnDescriptor columnDescriptor : columnDescriptors) {
+          preparedStatement.setObject(paramIndex++, map.get(columnDescriptor.getColumnName()));
+        }
+      }
+
+      preparedStatement.execute();
+    } catch (SQLException | IOException throwables) {
+      LOGGER.error("insert table with exception. [table = {}, columns = {}]", GsonUtil.GSON.toJson(tableDescriptor), GsonUtil.GSON.toJson(columnDescriptors), throwables);
     }
   }
 
